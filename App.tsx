@@ -29,7 +29,6 @@ const App: React.FC = () => {
 
   const isDirtyRef = useRef(false);
 
-  // Solicitar permissão para notificações
   const requestNotificationPermission = () => {
     if (typeof Notification !== 'undefined') {
       Notification.requestPermission().then(permission => {
@@ -38,7 +37,6 @@ const App: React.FC = () => {
     }
   };
 
-  // 1. Monitor Authentication State
   useEffect(() => {
     if (!auth) {
       setAuthInitialized(true);
@@ -54,10 +52,6 @@ const App: React.FC = () => {
         });
       } else {
         setUser(null);
-        setHabits([]);
-        setTasks([]);
-        setBooks([]);
-        setLogs([]);
       }
       setAuthInitialized(true);
     });
@@ -65,7 +59,6 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // 2. Real-time Data Sync
   useEffect(() => {
     if (!user || !db) return;
     setIsLoadingData(true);
@@ -91,7 +84,6 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, [user]);
 
-  // 3. Auto-Save
   useEffect(() => {
     if (!user || !db || isLoadingData) return;
     isDirtyRef.current = true;
@@ -116,46 +108,6 @@ const App: React.FC = () => {
     return () => clearTimeout(timeoutId);
   }, [habits, tasks, books, logs, user, isLoadingData]);
 
-  // 4. Lógica de Agendador de Notificações
-  useEffect(() => {
-    if (notificationPermission !== 'granted') return;
-
-    const checkReminders = () => {
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
-      const currentDay = String(now.getDate()).padStart(2, '0');
-      const currentDateStr = `${currentYear}-${currentMonth}-${currentDay}`;
-      
-      const currentHours = String(now.getHours()).padStart(2, '0');
-      const currentMinutes = String(now.getMinutes()).padStart(2, '0');
-      const currentTimeStr = `${currentHours}:${currentMinutes}`;
-
-      const tasksToNotify = tasks.filter(task => 
-        task.reminderSet && 
-        !task.completed && 
-        !task.notified && 
-        task.dueDate === currentDateStr && 
-        task.time === currentTimeStr
-      );
-
-      if (tasksToNotify.length > 0) {
-        tasksToNotify.forEach(task => {
-          new Notification("Lembrete LifeSync", {
-            body: `${task.type === 'event' ? '📅 Evento' : '✅ Tarefa'}: ${task.title}`,
-            icon: "/favicon.ico"
-          });
-          
-          setTasks(prev => prev.map(t => t.id === task.id ? { ...t, notified: true } : t));
-        });
-      }
-    };
-
-    const intervalId = setInterval(checkReminders, 10000);
-    return () => clearInterval(intervalId);
-  }, [tasks, notificationPermission]);
-
-
   if (!authInitialized) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-50">
@@ -169,28 +121,13 @@ const App: React.FC = () => {
   }
 
   const renderContent = () => {
-    if (isLoadingData && habits.length === 0 && tasks.length === 0 && books.length === 0 && logs.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400">
-           <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-           <p className="font-medium">Sincronizando seus dados...</p>
-        </div>
-      );
-    }
-
     switch (activeTab) {
-      case 'habits':
-        return <Habits habits={habits} setHabits={setHabits} />;
-      case 'tasks':
-        return <Tasks tasks={tasks} setTasks={setTasks} />;
-      case 'calendar':
-        return <CalendarView habits={habits} tasks={tasks} setTasks={setTasks} />;
-      case 'books':
-        return <Books books={books} setBooks={setBooks} />;
-      case 'study':
-        return <StudyManager logs={logs} setLogs={setLogs} />;
-      default:
-        return <Habits habits={habits} setHabits={setHabits} />;
+      case 'habits': return <Habits habits={habits} setHabits={setHabits} />;
+      case 'tasks': return <Tasks tasks={tasks} setTasks={setTasks} />;
+      case 'calendar': return <CalendarView habits={habits} tasks={tasks} setTasks={setTasks} />;
+      case 'books': return <Books books={books} setBooks={setBooks} />;
+      case 'study': return <StudyManager logs={logs} setLogs={setLogs} />;
+      default: return <Habits habits={habits} setHabits={setHabits} />;
     }
   };
 
@@ -202,7 +139,6 @@ const App: React.FC = () => {
         user={user} 
         syncStatus={syncStatus} 
       />
-      
       <main className="flex-1 p-4 md:p-8 lg:p-12 overflow-y-auto h-screen">
         <div className="max-w-5xl mx-auto pb-20 md:pb-0">
           <div className="flex items-center justify-end mb-4 md:hidden">

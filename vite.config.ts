@@ -3,30 +3,21 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  // Define 'process.env' para evitar erros de 'process is not defined' no navegador
   define: {
-    'process.env': process.env
+    // Define um fallback seguro para process.env.API_KEY
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY || '')
   },
   build: {
     outDir: 'dist',
     sourcemap: false,
-    chunkSizeWarningLimit: 1500,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('firebase')) return 'vendor-firebase';
-            if (id.includes('recharts')) return 'vendor-charts';
-            if (id.includes('lucide-react')) return 'vendor-ui';
-            return 'vendor';
-          }
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+          'vendor-utils': ['lucide-react', 'recharts']
         }
       }
-    }
-  },
-  resolve: {
-    alias: {
-      '@': '/'
     }
   }
 });
