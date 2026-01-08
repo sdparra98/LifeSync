@@ -1,3 +1,5 @@
+
+
 export interface Habit {
   id: string;
   name: string;
@@ -30,7 +32,16 @@ export interface Book {
   userNotes?: string;
 }
 
-export type Tab = 'habits' | 'tasks' | 'calendar' | 'books';
+// Added StudyLog interface to fix the error in StudyManager.tsx
+export interface StudyLog {
+  id: string;
+  date: string; // YYYY-MM-DD
+  subject: string;
+  duration: number; // Duration in decimal hours
+  notes?: string;
+}
+
+export type Tab = 'habits' | 'tasks' | 'calendar' | 'books' | 'study';
 
 export interface User {
   id: string;

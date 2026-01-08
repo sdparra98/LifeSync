@@ -1,14 +1,13 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+// Use process.env.API_KEY directly as required by instructions
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-// Helper model selection based on complexity
-const modelId = 'gemini-2.5-flash';
+// Basic tasks use gemini-3-flash-preview
+const modelId = 'gemini-3-flash-preview';
 
 export const getHabitSuggestions = async (goal: string): Promise<string[]> => {
-  if (!apiKey) return ["Configure sua API Key para receber sugestões."];
-
   try {
     const response = await ai.models.generateContent({
       model: modelId,
@@ -27,8 +26,10 @@ export const getHabitSuggestions = async (goal: string): Promise<string[]> => {
       }
     });
 
-    const json = JSON.parse(response.text || '{"suggestions": []}');
-    return json.suggestions;
+    // Access .text property directly (not as a function)
+    const jsonStr = response.text?.trim() || '{"suggestions": []}';
+    const json = JSON.parse(jsonStr);
+    return json.suggestions || [];
   } catch (error) {
     console.error("Erro ao buscar sugestões de hábitos:", error);
     return [];
@@ -36,13 +37,12 @@ export const getHabitSuggestions = async (goal: string): Promise<string[]> => {
 };
 
 export const getBookReview = async (title: string, author: string): Promise<string> => {
-  if (!apiKey) return "Configure sua API Key para gerar resumos.";
-
   try {
     const response = await ai.models.generateContent({
       model: modelId,
       contents: `Escreva um resumo muito breve (máximo 30 palavras) e motivador sobre o livro "${title}" de ${author}. Em Português.`,
     });
+    // Access .text property directly
     return response.text || "Não foi possível gerar o resumo.";
   } catch (error) {
     console.error("Erro ao gerar review:", error);
@@ -51,8 +51,6 @@ export const getBookReview = async (title: string, author: string): Promise<stri
 };
 
 export const breakDownTask = async (taskTitle: string): Promise<string[]> => {
-  if (!apiKey) return [];
-
   try {
     const response = await ai.models.generateContent({
       model: modelId,
@@ -70,9 +68,12 @@ export const breakDownTask = async (taskTitle: string): Promise<string[]> => {
         }
       }
     });
-    const json = JSON.parse(response.text || '{"suggestions": []}');
-    return json.suggestions;
+    // Access .text property directly
+    const jsonStr = response.text?.trim() || '{"suggestions": []}';
+    const json = JSON.parse(jsonStr);
+    return json.suggestions || [];
   } catch (error) {
+    console.error("Erro ao quebrar tarefa:", error);
     return [];
   }
 };

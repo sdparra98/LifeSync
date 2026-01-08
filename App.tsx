@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import Navigation from './components/Navigation';
 import Habits from './components/Habits';
 import Tasks from './components/Tasks';
 import CalendarView from './components/CalendarView';
 import Books from './components/Books';
+import StudyManager from './components/StudyManager';
 import Login from './components/Login';
-import { Tab, Habit, Task, Book, User } from './types';
+import { Tab, Habit, Task, Book, User, StudyLog } from './types';
 import { auth, db } from './services/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
@@ -21,6 +23,10 @@ const App: React.FC = () => {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
+  const [logs, setLogs] = useState<StudyLog[]>([]);
+
+  // Ref to track if there are unsaved local changes
+  const isDirtyRef = useRef(false);
 
   // 1. Monitor Authentication State
   useEffect(() => {
@@ -41,6 +47,7 @@ const App: React.FC = () => {
         setHabits([]);
         setTasks([]);
         setBooks([]);
+        setLogs([]);
       }
       setAuthInitialized(true);
     });
@@ -54,22 +61,31 @@ const App: React.FC = () => {
 
     setIsLoadingData(true);
     setSyncStatus('synced');
-    // Subscribe to the user's document
     const userDocRef = doc(db, 'users', user.id);
     
     const unsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
+      // Importante: hasPendingWrites indica que a mudança partiu daqui (local), 
+      // então não precisamos resetar o estado com o que veio do servidor ainda.
+      if (docSnapshot.metadata.hasPendingWrites) {
+        setIsLoadingData(false);
+        return;
+      }
+
+      // Se estamos com alterações locais pendentes de salvamento, ignoramos o snapshot remoto
+      if (isDirtyRef.current) {
+        setIsLoadingData(false);
+        return;
+      }
+
       if (docSnapshot.exists()) {
         const data = docSnapshot.data();
-        // Only update if data exists, otherwise keep defaults or empty
-        // Use functional updates to prevent overwrite if local state is newer? 
-        // For simplicity in this architecture, server wins on incoming sync, 
-        // but local changes trigger immediate save which pushes back.
         if (data.habits) setHabits(data.habits);
         if (data.tasks) setTasks(data.tasks);
         if (data.books) setBooks(data.books);
-      } else {
-        // New user document doesn't exist yet, we will create it on first save
+        if (data.studyLogs) setLogs(data.studyLogs);
       }
+      
+      // DESLIGA O CARREGAMENTO SEMPRE (mesmo se o documento for novo/vazio)
       setIsLoadingData(false);
     }, (error) => {
       console.error("Error fetching data:", error);
@@ -82,7 +98,11 @@ const App: React.FC = () => {
 
   // 3. Auto-Save changes to Firestore (Debounced)
   useEffect(() => {
+    // Não salva se estiver carregando ou se não houver usuário
     if (!user || !db || isLoadingData) return;
+
+    // Marca como "sujo" (tem alterações locais)
+    isDirtyRef.current = true;
 
     const saveData = async () => {
       setSyncStatus('saving');
@@ -91,8 +111,11 @@ const App: React.FC = () => {
           habits,
           tasks,
           books,
+          studyLogs: logs,
           lastUpdated: new Date().toISOString()
         }, { merge: true });
+        
+        isDirtyRef.current = false;
         setSyncStatus('synced');
       } catch (error) {
         console.error("Error saving data:", error);
@@ -100,9 +123,9 @@ const App: React.FC = () => {
       }
     };
 
-    const timeoutId = setTimeout(saveData, 2000); // Autosave after 2s of inactivity
+    const timeoutId = setTimeout(saveData, 2000); 
     return () => clearTimeout(timeoutId);
-  }, [habits, tasks, books, user, isLoadingData]);
+  }, [habits, tasks, books, logs, user, isLoadingData]);
 
 
   if (!authInitialized) {
@@ -118,11 +141,12 @@ const App: React.FC = () => {
   }
 
   const renderContent = () => {
-    if (isLoadingData && habits.length === 0 && tasks.length === 0 && books.length === 0) {
+    // Mostra o spinner apenas se estiver carregando E os dados ainda estiverem vazios (primeiro load)
+    if (isLoadingData && habits.length === 0 && tasks.length === 0 && books.length === 0 && logs.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400">
            <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-           <p>Sincronizando seus dados...</p>
+           <p className="font-medium">Sincronizando seus dados...</p>
         </div>
       );
     }
@@ -136,6 +160,8 @@ const App: React.FC = () => {
         return <CalendarView habits={habits} tasks={tasks} setTasks={setTasks} />;
       case 'books':
         return <Books books={books} setBooks={setBooks} />;
+      case 'study':
+        return <StudyManager logs={logs} setLogs={setLogs} />;
       default:
         return <Habits habits={habits} setHabits={setHabits} />;
     }
@@ -153,7 +179,6 @@ const App: React.FC = () => {
       <main className="flex-1 p-6 md:p-12 overflow-y-auto h-screen scroll-smooth">
         <div className="max-w-4xl mx-auto animate-in fade-in duration-500 pb-20 md:pb-0">
           
-          {/* Mobile Header */}
           <div className="md:hidden flex items-center justify-between mb-8">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs">

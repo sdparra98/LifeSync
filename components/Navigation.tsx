@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { LayoutList, CheckSquare, CalendarDays, BookOpen, LogOut, User as UserIcon, Cloud, CloudOff, RefreshCw } from 'lucide-react';
+import { LayoutList, CheckSquare, CalendarDays, BookOpen, GraduationCap, LogOut, User as UserIcon, Cloud, CloudOff, RefreshCw } from 'lucide-react';
 import { Tab, User } from '../types';
 import { auth } from '../services/firebaseConfig';
 import { signOut } from 'firebase/auth';
@@ -17,6 +18,8 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab, user, 
     { id: 'tasks' as Tab, icon: CheckSquare, label: 'Tarefas' },
     { id: 'calendar' as Tab, icon: CalendarDays, label: 'Calendário' },
     { id: 'books' as Tab, icon: BookOpen, label: 'Livros' },
+    // Added Study tab for easier access to the new module
+    { id: 'study' as Tab, icon: GraduationCap, label: 'Estudos' },
   ];
 
   const handleLogout = () => {
@@ -36,7 +39,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab, user, 
         );
       case 'error':
         return (
-          <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 px-2 py-1 rounded-full border border-red-100" title="Verifique se o Firestore está criado no console">
+          <div className="flex items-center gap-2 text-xs text- red-600 bg-red-50 px-2 py-1 rounded-full border border-red-100" title="Verifique se o Firestore está criado no console">
             <CloudOff size={12} />
             <span className="hidden md:inline">Erro no Sync</span>
           </div>
@@ -53,9 +56,8 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab, user, 
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-4 md:static md:w-64 md:h-screen md:border-r md:border-t-0 md:flex md:flex-col md:justify-between md:p-6 z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-4 md:static md:w-64 md:h-screen md:border-r md:border-t-0 md:flex md:flex-col md:justify-between md:p-6 z-50">
       
-      {/* Top Section */}
       <div>
         <div className="hidden md:flex items-center gap-3 mb-10">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-indigo-200">
@@ -77,19 +79,16 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab, user, 
                     ? 'text-indigo-600 md:bg-indigo-50 font-semibold' 
                     : 'text-slate-400 hover:text-indigo-500 hover:bg-slate-50'}`}
               >
-                <Icon size={24} strokeWidth={isActive ? 2.5 : 2} className="transition-transform duration-300 md:w-5 md:h-5 group-hover:scale-110 md:group-hover:scale-100" />
-                <span className="text-[10px] md:text-sm">{tab.label}</span>
+                <Icon size={22} strokeWidth={isActive ? 2.5 : 2} className="transition-transform duration-300 md:w-5 md:h-5 group-hover:scale-110 md:group-hover:scale-100" />
+                <span className="text-[10px] md:text-sm whitespace-nowrap">{tab.label}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* User & Logout Section */}
       <div className="hidden md:block">
          <div className="border-t border-slate-100 pt-6 mb-2">
-            
-            {/* Sync Status Indicator */}
             <div className="mb-4 flex justify-center md:justify-start">
                {getStatusDisplay()}
             </div>
