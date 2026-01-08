@@ -17,6 +17,7 @@ const App: React.FC = () => {
   const [authInitialized, setAuthInitialized] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('habits');
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false); // Trava de segurança para evitar sobrescrita
   const [syncStatus, setSyncStatus] = useState<'synced' | 'saving' | 'error'>('synced');
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
     typeof Notification !== 'undefined' ? Notification.permission : 'default'
@@ -37,6 +38,7 @@ const App: React.FC = () => {
     }
   };
 
+  // 1. Monitorar Autenticação
   useEffect(() => {
     if (!auth) {
       setAuthInitialized(true);
@@ -51,7 +53,13 @@ const App: React.FC = () => {
           avatar: firebaseUser.photoURL || undefined
         });
       } else {
+        // Reset total ao deslogar
         setUser(null);
+        setHabits([]);
+        setTasks([]);
+        setBooks([]);
+        setLogs([]);
+        setDataLoaded(false);
       }
       setAuthInitialized(true);
     });
@@ -59,15 +67,20 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  // 2. Sincronização em Tempo Real (Download)
   useEffect(() => {
     if (!user || !db) return;
+    
     setIsLoadingData(true);
     const userDocRef = doc(db, 'users', user.id);
+    
     const unsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
-      if (docSnapshot.metadata.hasPendingWrites || isDirtyRef.current) {
+      // Se a mudança veio do próprio cliente, ignoramos para não resetar estados locais em transição
+      if (docSnapshot.metadata.hasPendingWrites) {
         setIsLoadingData(false);
         return;
       }
+
       if (docSnapshot.exists()) {
         const data = docSnapshot.data();
         if (data.habits) setHabits(data.habits);
@@ -75,17 +88,24 @@ const App: React.FC = () => {
         if (data.books) setBooks(data.books);
         if (data.studyLogs) setLogs(data.studyLogs);
       }
+      
       setIsLoadingData(false);
+      setDataLoaded(true); // Agora é seguro salvar alterações
     }, (error) => {
-      console.error("Error fetching data:", error);
+      console.error("Erro ao buscar dados:", error);
       setSyncStatus('error');
       setIsLoadingData(false);
     });
+
     return () => unsubscribe();
   }, [user]);
 
+  // 3. Auto-Save Otimizado (Upload)
   useEffect(() => {
-    if (!user || !db || isLoadingData) return;
+    // CRÍTICO: Não salva se o usuário não estiver logado, 
+    // se estivermos carregando dados iniciais ou se a carga inicial ainda não terminou.
+    if (!user || !db || isLoadingData || !dataLoaded) return;
+
     isDirtyRef.current = true;
     const saveData = async () => {
       setSyncStatus('saving');
@@ -100,13 +120,14 @@ const App: React.FC = () => {
         isDirtyRef.current = false;
         setSyncStatus('synced');
       } catch (error) {
-        console.error("Error saving data:", error);
+        console.error("Erro ao salvar dados:", error);
         setSyncStatus('error');
       }
     };
+
     const timeoutId = setTimeout(saveData, 2000); 
     return () => clearTimeout(timeoutId);
-  }, [habits, tasks, books, logs, user, isLoadingData]);
+  }, [habits, tasks, books, logs, user, isLoadingData, dataLoaded]);
 
   if (!authInitialized) {
     return (
