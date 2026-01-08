@@ -1,24 +1,32 @@
-
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // Define 'process.env' para evitar erros de 'process is not defined' no navegador
+  define: {
+    'process.env': process.env
+  },
   build: {
     outDir: 'dist',
     sourcemap: false,
-    // Aumenta o limite do aviso para 1000kb (útil para apps com bibliotecas pesadas como Firebase)
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 1500,
     rollupOptions: {
       output: {
-        // Separa bibliotecas grandes em chunks menores e independentes
-        manualChunks: {
-          'firebase-bundle': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
-          'ui-charts': ['recharts'],
-          'vendor': ['react', 'react-dom', 'lucide-react']
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('firebase')) return 'vendor-firebase';
+            if (id.includes('recharts')) return 'vendor-charts';
+            if (id.includes('lucide-react')) return 'vendor-ui';
+            return 'vendor';
+          }
         }
       }
+    }
+  },
+  resolve: {
+    alias: {
+      '@': '/'
     }
   }
 });
