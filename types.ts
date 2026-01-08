@@ -1,5 +1,4 @@
 
-
 export interface Habit {
   id: string;
   name: string;
@@ -16,6 +15,8 @@ export interface Task {
   time?: string; // HH:MM format
   priority: 'low' | 'medium' | 'high';
   type?: 'task' | 'event'; // 'task' is checkable, 'event' is a schedule item
+  reminderSet?: boolean; // Se o usuário quer ser notificado
+  notified?: boolean; // Se a notificação já foi enviada
 }
 
 export interface Book {
@@ -32,7 +33,6 @@ export interface Book {
   userNotes?: string;
 }
 
-// Added StudyLog interface to fix the error in StudyManager.tsx
 export interface StudyLog {
   id: string;
   date: string; // YYYY-MM-DD

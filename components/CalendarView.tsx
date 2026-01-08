@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Habit, Task } from '../types';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, CheckCircle2, Circle, Trophy } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, CheckCircle2, Circle, Trophy, Bell, BellOff } from 'lucide-react';
 
 interface CalendarViewProps {
   habits: Habit[];
@@ -11,7 +11,6 @@ interface CalendarViewProps {
 }
 
 const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) => {
-  // Helper to get local date string YYYY-MM-DD
   const getLocalDateString = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -25,8 +24,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskTime, setNewTaskTime] = useState('');
   const [newTaskType, setNewTaskType] = useState<'task' | 'event'>('task');
+  const [withReminder, setWithReminder] = useState(false);
 
-  // Helpers for Calendar Grid
   const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
 
@@ -56,15 +55,22 @@ const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) 
       priority: 'medium',
       dueDate: selectedDate,
       time: newTaskTime || undefined,
-      type: newTaskType
+      type: newTaskType,
+      reminderSet: withReminder && !!newTaskTime,
+      notified: false
     };
     setTasks(prev => [...prev, newTask]);
     setNewTaskTitle('');
     setNewTaskTime('');
+    setWithReminder(false);
   };
 
   const toggleTask = (id: string) => {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  };
+
+  const toggleReminder = (id: string) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, reminderSet: !t.reminderSet, notified: false } : t));
   };
 
   const tasksForSelectedDate = tasks.filter(t => t.dueDate === selectedDate).sort((a, b) => {
@@ -122,8 +128,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) 
   });
 
   const bestStreak = habits.reduce((acc, h) => Math.max(acc, h.streak), 0);
-
-  // Parse date for display to avoid timezone shift (adding time to force local interp)
   const displayDate = new Date(selectedDate + 'T12:00:00');
 
   return (
@@ -189,24 +193,36 @@ const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) 
                   placeholder={newTaskType === 'task' ? "O que precisa ser feito?" : "Nome do compromisso"}
                   className="w-full text-sm p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                />
-               <div className="flex gap-2">
-                 <div className="relative flex-1">
-                    <Clock size={14} className="absolute left-3 top-3 text-slate-400" />
-                    <input 
-                      type="time" 
-                      value={newTaskTime}
-                      onChange={(e) => setNewTaskTime(e.target.value)}
-                      className="w-full text-sm pl-9 p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-600"
-                    />
+               <div className="flex flex-col gap-2">
+                 <div className="flex gap-2">
+                   <div className="relative flex-1">
+                      <Clock size={14} className="absolute left-3 top-3 text-slate-400" />
+                      <input 
+                        type="time" 
+                        value={newTaskTime}
+                        onChange={(e) => setNewTaskTime(e.target.value)}
+                        className="w-full text-sm pl-9 p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-600"
+                      />
+                   </div>
+                   <button 
+                     onClick={addTaskToDate}
+                     className={`px-4 rounded-xl text-white shadow-lg transition-colors flex items-center justify-center
+                       ${newTaskType === 'task' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200' : 'bg-purple-600 hover:bg-purple-700 shadow-purple-200'}
+                     `}
+                   >
+                     <Plus size={20} />
+                   </button>
                  </div>
-                 <button 
-                   onClick={addTaskToDate}
-                   className={`px-4 rounded-xl text-white shadow-lg transition-colors flex items-center justify-center
-                     ${newTaskType === 'task' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200' : 'bg-purple-600 hover:bg-purple-700 shadow-purple-200'}
-                   `}
-                 >
-                   <Plus size={20} />
-                 </button>
+                 
+                 {newTaskTime && (
+                   <button 
+                    onClick={() => setWithReminder(!withReminder)}
+                    className={`flex items-center gap-2 text-[10px] font-bold py-1 px-2 rounded-lg transition-colors ${withReminder ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 bg-slate-50'}`}
+                   >
+                     {withReminder ? <Bell size={12} /> : <BellOff size={12} />}
+                     {withReminder ? 'Lembrete Ativo' : 'Ativar Lembrete'}
+                   </button>
+                 )}
                </div>
              </div>
 
@@ -236,13 +252,24 @@ const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) 
                      <p className={`text-sm font-medium truncate ${task.completed ? 'line-through text-slate-500' : 'text-slate-800'}`}>
                        {task.title}
                      </p>
-                     {task.time && (
-                       <p className={`text-xs flex items-center gap-1 ${task.type === 'event' ? 'text-purple-600' : 'text-slate-400'}`}>
-                         <Clock size={10} />
-                         {task.time}
-                       </p>
-                     )}
+                     <div className="flex items-center gap-2">
+                        {task.time && (
+                          <p className={`text-[10px] flex items-center gap-1 ${task.type === 'event' ? 'text-purple-600' : 'text-slate-400'}`}>
+                            <Clock size={10} />
+                            {task.time}
+                          </p>
+                        )}
+                        {task.reminderSet && !task.completed && <Bell size={10} className="text-indigo-500" />}
+                     </div>
                    </div>
+                   {!task.completed && task.time && (
+                     <button 
+                      onClick={() => toggleReminder(task.id)}
+                      className={`p-1.5 rounded-md transition-colors ${task.reminderSet ? 'text-indigo-600 bg-indigo-50' : 'text-slate-300 hover:bg-slate-50'}`}
+                     >
+                        {task.reminderSet ? <Bell size={14} /> : <BellOff size={14} />}
+                     </button>
+                   )}
                  </div>
                ))}
              </div>

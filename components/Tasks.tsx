@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Plus, Circle, CheckCircle2, Trash2, Wand2, Calendar, Clock, Sun, AlertTriangle, CalendarDays } from 'lucide-react';
+import { Plus, Circle, CheckCircle2, Trash2, Wand2, Calendar, Clock, Sun, AlertTriangle, CalendarDays, Bell, BellOff } from 'lucide-react';
 import { Task } from '../types';
 import { breakDownTask } from '../services/geminiService';
 
@@ -13,7 +13,6 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
   const [newTask, setNewTask] = useState('');
   const [loadingTask, setLoadingTask] = useState<string | null>(null);
 
-  // Helper to get local date string YYYY-MM-DD
   const getLocalDateString = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -23,7 +22,6 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
 
   const todayStr = getLocalDateString(new Date());
 
-  // Stats Calculation
   const tasksTodayCount = tasks.filter(t => !t.completed && t.dueDate === todayStr).length;
   const tasksPendingCount = tasks.filter(t => !t.completed && t.dueDate && t.dueDate < todayStr).length;
   const tasksFutureCount = tasks.filter(t => !t.completed && t.dueDate && t.dueDate > todayStr).length;
@@ -36,7 +34,9 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
       completed: false,
       priority: 'medium',
       dueDate: todayStr,
-      type: 'task'
+      type: 'task',
+      reminderSet: false,
+      notified: false
     };
     setTasks(prev => [task, ...prev]);
     setNewTask('');
@@ -48,6 +48,10 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
 
   const deleteTask = (id: string) => {
     setTasks(prev => prev.filter(t => t.id !== id));
+  };
+
+  const toggleReminder = (id: string) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, reminderSet: !t.reminderSet, notified: false } : t));
   };
 
   const handleBreakdown = async (task: Task) => {
@@ -62,7 +66,9 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
             completed: false,
             priority: task.priority,
             dueDate: task.dueDate,
-            type: 'task'
+            type: 'task',
+            reminderSet: false,
+            notified: false
         } as Task));
         return [...newTasks, ...filtered];
       });
@@ -158,7 +164,6 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
                       <Calendar size={10} />
                       {new Date(task.dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                       {isOverdue && !task.completed && " (Atrasada)"}
-                      {isFuture && !task.completed && " (Futura)"}
                     </span>
                   )}
                   {task.time && (
@@ -167,24 +172,40 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
                       {task.time}
                     </span>
                   )}
-                  {task.type === 'event' && <span className="text-[10px] bg-purple-100 text-purple-600 px-1.5 rounded-md font-medium">Evento</span>}
+                  {task.reminderSet && !task.completed && (
+                    <span className="text-[10px] flex items-center gap-1 text-indigo-500 font-bold">
+                       <Bell size={10} /> Ativo
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {!task.completed && task.type === 'task' && (
-                <button 
-                  onClick={() => handleBreakdown(task)}
-                  disabled={!!loadingTask}
-                  className="opacity-0 group-hover:opacity-100 text-purple-500 hover:bg-purple-50 p-2 rounded-lg transition-all"
-                  title="Dividir tarefa com IA"
-                >
-                  {loadingTask === task.id ? <span className="animate-spin block w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full"/> : <Wand2 size={16} />}
-                </button>
-              )}
+              <div className="flex items-center gap-1">
+                {!task.completed && task.time && (
+                  <button 
+                    onClick={() => toggleReminder(task.id)}
+                    className={`p-2 rounded-lg transition-all ${task.reminderSet ? 'text-indigo-600 bg-indigo-50' : 'text-slate-300 hover:text-indigo-400'}`}
+                    title={task.reminderSet ? "Desativar Lembrete" : "Ativar Lembrete"}
+                  >
+                    {task.reminderSet ? <Bell size={16} /> : <BellOff size={16} />}
+                  </button>
+                )}
 
-              <button onClick={() => deleteTask(task.id)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 p-2 transition-all">
-                <Trash2 size={18} />
-              </button>
+                {!task.completed && task.type === 'task' && (
+                  <button 
+                    onClick={() => handleBreakdown(task)}
+                    disabled={!!loadingTask}
+                    className="opacity-0 group-hover:opacity-100 text-purple-500 hover:bg-purple-50 p-2 rounded-lg transition-all"
+                    title="Dividir tarefa com IA"
+                  >
+                    {loadingTask === task.id ? <span className="animate-spin block w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full"/> : <Wand2 size={16} />}
+                  </button>
+                )}
+
+                <button onClick={() => deleteTask(task.id)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 p-2 transition-all">
+                  <Trash2 size={18} />
+                </button>
+              </div>
             </div>
           );
         })}
