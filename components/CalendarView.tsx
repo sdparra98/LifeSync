@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Habit, Task } from '../types';
@@ -10,8 +11,17 @@ interface CalendarViewProps {
 }
 
 const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) => {
+  // Helper to get local date string YYYY-MM-DD
+  const getLocalDateString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayStr = getLocalDateString(new Date());
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskTime, setNewTaskTime] = useState('');
   const [newTaskType, setNewTaskType] = useState<'task' | 'event'>('task');
@@ -57,22 +67,19 @@ const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) 
     setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
   };
 
-  // Filter tasks for selected date
   const tasksForSelectedDate = tasks.filter(t => t.dueDate === selectedDate).sort((a, b) => {
     if (a.time && b.time) return a.time.localeCompare(b.time);
     return 0;
   });
 
-  // Calendar Grid Cells Generation
   const calendarCells = [];
-  // Empty cells for days before start of month
   for (let i = 0; i < firstDay; i++) {
     calendarCells.push(<div key={`empty-${i}`} className="h-24 bg-slate-50/50 border border-slate-100/50"></div>);
   }
-  // Days
+  
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    const isToday = new Date().toISOString().split('T')[0] === dateStr;
+    const isToday = todayStr === dateStr;
     const isSelected = selectedDate === dateStr;
     const dayTasks = tasks.filter(t => t.dueDate === dateStr);
     const hasEvents = dayTasks.some(t => t.type === 'event');
@@ -93,8 +100,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) 
             {d}
           </span>
         </div>
-        
-        {/* Indicators */}
         <div className="flex flex-col gap-1 mt-2">
            {hasEvents && <div className="h-1.5 w-full bg-purple-200 rounded-full overflow-hidden"><div className="h-full bg-purple-500 w-full"></div></div>}
            {hasTasks && <div className="flex gap-0.5 flex-wrap">
@@ -107,17 +112,19 @@ const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) 
     );
   }
 
-  // Stats Data
   const chartData = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = getLocalDateString(d);
     const dayName = d.toLocaleDateString('pt-BR', { weekday: 'short' });
     const completionCount = habits.reduce((acc, habit) => acc + (habit.completedDates.includes(dateStr) ? 1 : 0), 0);
     return { name: dayName, completions: completionCount, date: dateStr };
   });
 
   const bestStreak = habits.reduce((acc, h) => Math.max(acc, h.streak), 0);
+
+  // Parse date for display to avoid timezone shift (adding time to force local interp)
+  const displayDate = new Date(selectedDate + 'T12:00:00');
 
   return (
     <div className="space-y-8 pb-24">
@@ -129,7 +136,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) 
       </header>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Calendar Grid Section */}
         <div className="flex-1">
           <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b border-slate-100">
@@ -139,7 +145,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) 
                 <button onClick={() => changeMonth(1)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600"><ChevronRight size={20}/></button>
               </div>
             </div>
-            
             <div className="grid grid-cols-7 border-b border-slate-100">
               {weekDays.map(d => (
                 <div key={d} className="py-3 text-center text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
@@ -147,25 +152,22 @@ const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) 
                 </div>
               ))}
             </div>
-            
             <div className="grid grid-cols-7">
               {calendarCells}
             </div>
           </div>
         </div>
 
-        {/* Side Panel: Selected Date Agenda */}
         <div className="lg:w-80 space-y-6">
           <div className="bg-white p-6 rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100">
              <div className="mb-6">
                 <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                   <CalendarIcon className="text-indigo-500" size={20}/>
-                  {new Date(selectedDate).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}
+                  {displayDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}
                 </h3>
-                <p className="text-sm text-slate-500 capitalize">{new Date(selectedDate).toLocaleDateString('pt-BR', { weekday: 'long' })}</p>
+                <p className="text-sm text-slate-500 capitalize">{displayDate.toLocaleDateString('pt-BR', { weekday: 'long' })}</p>
              </div>
 
-             {/* Add Task Form */}
              <div className="mb-6 space-y-3">
                <div className="flex gap-2 bg-slate-50 p-1 rounded-lg">
                  <button 
@@ -208,14 +210,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) 
                </div>
              </div>
 
-             {/* Agenda List */}
              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
                {tasksForSelectedDate.length === 0 && (
                  <div className="text-center py-8 text-slate-400 text-sm">
                    Nenhum item para este dia.
                  </div>
                )}
-               
                {tasksForSelectedDate.map(task => (
                  <div 
                    key={task.id} 
@@ -232,7 +232,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) 
                    ) : (
                      <div className="w-1.5 h-8 bg-purple-400 rounded-full"></div>
                    )}
-                   
                    <div className="flex-1 min-w-0">
                      <p className={`text-sm font-medium truncate ${task.completed ? 'line-through text-slate-500' : 'text-slate-800'}`}>
                        {task.title}
@@ -251,7 +250,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) 
         </div>
       </div>
 
-      {/* Stats Section */}
       <div className="mt-12 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
         <div className="flex items-center justify-between mb-6">
            <h3 className="font-bold text-slate-800 flex items-center gap-2">
@@ -263,20 +261,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ habits, tasks, setTasks }) 
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
-              <XAxis 
-                dataKey="name" 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: '#94a3b8', fontSize: 12 }} 
-                dy={10}
-              />
-              <Tooltip 
-                cursor={{ fill: '#f1f5f9', radius: 8 }}
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-              />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} dy={10} />
+              <Tooltip cursor={{ fill: '#f1f5f9', radius: 8 }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
               <Bar dataKey="completions" radius={[4, 4, 4, 4]} barSize={40}>
                 {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.date === new Date().toISOString().split('T')[0] ? '#6366f1' : '#cbd5e1'} />
+                  <Cell key={`cell-${index}`} fill={entry.date === todayStr ? '#6366f1' : '#cbd5e1'} />
                 ))}
               </Bar>
             </BarChart>

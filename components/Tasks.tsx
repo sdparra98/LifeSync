@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Plus, Circle, CheckCircle2, Trash2, Wand2, Calendar, Clock, Sun, AlertTriangle, CalendarDays } from 'lucide-react';
 import { Task } from '../types';
@@ -12,13 +13,19 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
   const [newTask, setNewTask] = useState('');
   const [loadingTask, setLoadingTask] = useState<string | null>(null);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Helper to get local date string YYYY-MM-DD
+  const getLocalDateString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayStr = getLocalDateString(new Date());
 
   // Stats Calculation
   const tasksTodayCount = tasks.filter(t => !t.completed && t.dueDate === todayStr).length;
-  // "Pendentes" logic: Tasks due before today that are not completed (Overdue/Backlog)
   const tasksPendingCount = tasks.filter(t => !t.completed && t.dueDate && t.dueDate < todayStr).length;
-  // "Futuras" logic: Tasks due after today
   const tasksFutureCount = tasks.filter(t => !t.completed && t.dueDate && t.dueDate > todayStr).length;
 
   const addTask = (title: string) => {
@@ -28,7 +35,7 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
       title,
       completed: false,
       priority: 'medium',
-      dueDate: todayStr, // Default to today
+      dueDate: todayStr,
       type: 'task'
     };
     setTasks(prev => [task, ...prev]);
@@ -47,7 +54,6 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
     setLoadingTask(task.id);
     const subtasks = await breakDownTask(task.title);
     if (subtasks.length > 0) {
-      // Remove original large task and add subtasks
       setTasks(prev => {
         const filtered = prev.filter(t => t.id !== task.id);
         const newTasks = subtasks.map(st => ({
@@ -64,7 +70,6 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
     setLoadingTask(null);
   };
 
-  // Sort: Incomplete first, then by date/time
   const sortedTasks = [...tasks].sort((a, b) => {
     if (a.completed !== b.completed) return Number(a.completed) - Number(b.completed);
     if (a.dueDate !== b.dueDate) return (a.dueDate || '').localeCompare(b.dueDate || '');
@@ -78,9 +83,7 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
         <p className="text-slate-500 text-sm">Organize seu dia com eficiência.</p>
       </header>
 
-      {/* Widgets Section */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {/* Today Widget */}
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-4 text-white shadow-lg shadow-blue-200 col-span-2 md:col-span-1">
           <div className="flex items-start justify-between mb-2">
             <div className="p-2 bg-white/20 rounded-lg">
@@ -91,7 +94,6 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
           <p className="font-medium text-sm text-blue-100">Para Hoje</p>
         </div>
 
-        {/* Pending/Overdue Widget */}
         <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
           <div className="flex items-start justify-between mb-2">
             <div className="p-2 bg-amber-100 rounded-lg">
@@ -102,7 +104,6 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
           <p className="font-medium text-sm text-slate-500">Pendentes</p>
         </div>
 
-        {/* Future Widget */}
         <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
           <div className="flex items-start justify-between mb-2">
             <div className="p-2 bg-purple-100 rounded-lg">
@@ -123,10 +124,7 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
           placeholder="Adicionar nova tarefa para hoje..."
           className="w-full pl-4 pr-12 py-4 rounded-xl shadow-sm border-none bg-white ring-1 ring-slate-200 focus:ring-2 focus:ring-pink-500 outline-none text-slate-700 placeholder:text-slate-400"
         />
-        <button 
-          onClick={() => addTask(newTask)}
-          className="absolute right-2 top-2 p-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors"
-        >
+        <button onClick={() => addTask(newTask)} className="absolute right-2 top-2 p-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors">
           <Plus size={20} />
         </button>
       </div>
@@ -158,7 +156,7 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
                       ${task.completed ? 'text-slate-300' : isOverdue ? 'text-amber-600 font-bold' : isFuture ? 'text-purple-500 font-medium' : 'text-slate-400'}`}
                     >
                       <Calendar size={10} />
-                      {new Date(task.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                      {new Date(task.dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                       {isOverdue && !task.completed && " (Atrasada)"}
                       {isFuture && !task.completed && " (Futura)"}
                     </span>

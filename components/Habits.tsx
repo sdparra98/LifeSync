@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Plus, Check, Flame, Sparkles, Trash2, X, Heart, Wallet, GraduationCap, Briefcase, Layers } from 'lucide-react';
 import { Habit } from '../types';
@@ -8,7 +9,6 @@ interface HabitsProps {
   setHabits: React.Dispatch<React.SetStateAction<Habit[]>>;
 }
 
-// Configuration for the requested categories
 const CATEGORIES = [
   { id: 'Saúde & Bem-estar', icon: Heart, color: 'text-emerald-600', bg: 'bg-emerald-100', border: 'border-emerald-200', lightBg: 'bg-emerald-50/50' },
   { id: 'Finanças', icon: Wallet, color: 'text-amber-600', bg: 'bg-amber-100', border: 'border-amber-200', lightBg: 'bg-amber-50/50' },
@@ -26,7 +26,15 @@ const Habits: React.FC<HabitsProps> = ({ habits, setHabits }) => {
   const [aiGoal, setAiGoal] = useState('');
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
 
-  const today = new Date().toISOString().split('T')[0];
+  // Helper to get local date string YYYY-MM-DD
+  const getLocalDateString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const today = getLocalDateString(new Date());
 
   const toggleHabit = (id: string) => {
     setHabits(prev => prev.map(h => {
@@ -67,9 +75,7 @@ const Habits: React.FC<HabitsProps> = ({ habits, setHabits }) => {
     setIsAiLoading(false);
   };
 
-  // Group habits by category for display
   const habitsByCategory = (category: string) => {
-    // If it's "Outros", match anything that isn't in the main 4, or explicitly "Outros"
     if (category === 'Outros') {
       const mainCategories = CATEGORIES.slice(0, 4).map(c => c.id);
       return habits.filter(h => h.category === 'Outros' || !mainCategories.includes(h.category));
@@ -93,7 +99,6 @@ const Habits: React.FC<HabitsProps> = ({ habits, setHabits }) => {
         </button>
       </header>
 
-      {/* Input Area */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
         <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-1">
           {CATEGORIES.map(cat => {
@@ -113,7 +118,6 @@ const Habits: React.FC<HabitsProps> = ({ habits, setHabits }) => {
             )
           })}
         </div>
-        
         <div className="flex gap-2">
           <input
             type="text"
@@ -132,16 +136,13 @@ const Habits: React.FC<HabitsProps> = ({ habits, setHabits }) => {
         </div>
       </div>
 
-      {/* Grouped Habits Grid */}
-      <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {CATEGORIES.map(cat => {
           const catHabits = habitsByCategory(cat.id);
           const Icon = cat.icon;
-          
           if (catHabits.length === 0) return null;
-
           return (
-            <div key={cat.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div key={cat.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500 col-span-full">
               <div className="flex items-center gap-2 mb-4 ml-1">
                  <div className={`p-1.5 rounded-lg ${cat.bg} ${cat.color}`}>
                     <Icon size={16} />
@@ -151,7 +152,6 @@ const Habits: React.FC<HabitsProps> = ({ habits, setHabits }) => {
                    {catHabits.filter(h => h.completedDates.includes(today)).length}/{catHabits.length}
                  </span>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {catHabits.map(habit => {
                   const isDone = habit.completedDates.includes(today);
@@ -175,10 +175,7 @@ const Habits: React.FC<HabitsProps> = ({ habits, setHabits }) => {
                             </div>
                           </div>
                         </div>
-                        <button 
-                          onClick={() => deleteHabit(habit.id)}
-                          className="text-slate-300 hover:text-red-400 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
+                        <button onClick={() => deleteHabit(habit.id)} className="text-slate-300 hover:text-red-400 p-2 transition-opacity">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -189,9 +186,8 @@ const Habits: React.FC<HabitsProps> = ({ habits, setHabits }) => {
             </div>
           )
         })}
-
         {habits.length === 0 && (
-          <div className="text-center py-16 text-slate-400 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+          <div className="text-center py-16 text-slate-400 bg-slate-50 rounded-3xl border border-dashed border-slate-200 col-span-full">
             <Sparkles className="mx-auto mb-3 text-slate-300" size={32} />
             <p className="font-medium">Nenhum hábito criado ainda.</p>
             <p className="text-sm mt-1">Escolha uma categoria acima e comece sua jornada!</p>
@@ -199,7 +195,6 @@ const Habits: React.FC<HabitsProps> = ({ habits, setHabits }) => {
         )}
       </div>
 
-      {/* AI Modal */}
       {showAiModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200">
@@ -210,7 +205,6 @@ const Habits: React.FC<HabitsProps> = ({ habits, setHabits }) => {
               </h3>
               <button onClick={() => setShowAiModal(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
             </div>
-            
             <div className="mb-4">
               <label className="block text-sm font-bold text-slate-700 mb-2">Qual é o seu objetivo?</label>
               <input 
@@ -221,7 +215,6 @@ const Habits: React.FC<HabitsProps> = ({ habits, setHabits }) => {
                 className="w-full p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50"
               />
             </div>
-
             {aiSuggestions.length > 0 && (
               <div className="mb-6 space-y-2">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Sugestões da IA:</p>
@@ -239,7 +232,6 @@ const Habits: React.FC<HabitsProps> = ({ habits, setHabits }) => {
                 ))}
               </div>
             )}
-
             <button 
               onClick={handleAiSuggest}
               disabled={isAiLoading || !aiGoal}
