@@ -23,10 +23,21 @@ export interface Book {
   status: 'reading' | 'completed' | 'wishlist';
   rating: number; // 0-5
   coverPlaceholder: number; // For picsum
-  review: string;
+  coverUrl?: string; // Official book cover URL
+  review: string; // AI Review
+  totalPages: number;
+  currentPage: number;
+  userNotes?: string;
 }
 
 export type Tab = 'habits' | 'tasks' | 'calendar' | 'books';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+}
 
 export interface SuggestionResponse {
   suggestions: string[];

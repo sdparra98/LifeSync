@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Circle, CheckCircle2, Trash2, AlertCircle, Wand2, Calendar, Clock } from 'lucide-react';
+import { Plus, Circle, CheckCircle2, Trash2, Wand2, Calendar, Clock, Sun, AlertTriangle, CalendarDays } from 'lucide-react';
 import { Task } from '../types';
 import { breakDownTask } from '../services/geminiService';
 
@@ -12,6 +12,15 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
   const [newTask, setNewTask] = useState('');
   const [loadingTask, setLoadingTask] = useState<string | null>(null);
 
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Stats Calculation
+  const tasksTodayCount = tasks.filter(t => !t.completed && t.dueDate === todayStr).length;
+  // "Pendentes" logic: Tasks due before today that are not completed (Overdue/Backlog)
+  const tasksPendingCount = tasks.filter(t => !t.completed && t.dueDate && t.dueDate < todayStr).length;
+  // "Futuras" logic: Tasks due after today
+  const tasksFutureCount = tasks.filter(t => !t.completed && t.dueDate && t.dueDate > todayStr).length;
+
   const addTask = (title: string) => {
     if (!title.trim()) return;
     const task: Task = {
@@ -19,7 +28,7 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
       title,
       completed: false,
       priority: 'medium',
-      dueDate: new Date().toISOString().split('T')[0], // Default to today
+      dueDate: todayStr, // Default to today
       type: 'task'
     };
     setTasks(prev => [task, ...prev]);
@@ -69,6 +78,42 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
         <p className="text-slate-500 text-sm">Organize seu dia com eficiência.</p>
       </header>
 
+      {/* Widgets Section */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {/* Today Widget */}
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-4 text-white shadow-lg shadow-blue-200 col-span-2 md:col-span-1">
+          <div className="flex items-start justify-between mb-2">
+            <div className="p-2 bg-white/20 rounded-lg">
+              <Sun size={20} className="text-white" />
+            </div>
+            <span className="text-3xl font-bold">{tasksTodayCount}</span>
+          </div>
+          <p className="font-medium text-sm text-blue-100">Para Hoje</p>
+        </div>
+
+        {/* Pending/Overdue Widget */}
+        <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+          <div className="flex items-start justify-between mb-2">
+            <div className="p-2 bg-amber-100 rounded-lg">
+              <AlertTriangle size={20} className="text-amber-600" />
+            </div>
+            <span className="text-3xl font-bold text-slate-800">{tasksPendingCount}</span>
+          </div>
+          <p className="font-medium text-sm text-slate-500">Pendentes</p>
+        </div>
+
+        {/* Future Widget */}
+        <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+          <div className="flex items-start justify-between mb-2">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <CalendarDays size={20} className="text-purple-600" />
+            </div>
+            <span className="text-3xl font-bold text-slate-800">{tasksFutureCount}</span>
+          </div>
+          <p className="font-medium text-sm text-slate-500">Futuras</p>
+        </div>
+      </div>
+
       <div className="relative">
         <input
           type="text"
@@ -87,53 +132,64 @@ const Tasks: React.FC<TasksProps> = ({ tasks, setTasks }) => {
       </div>
 
       <div className="space-y-3">
-        {sortedTasks.map(task => (
-          <div key={task.id} className={`group flex items-center gap-3 p-4 bg-white rounded-xl border ${task.completed ? 'border-slate-100 bg-slate-50' : 'border-slate-200 shadow-sm'} transition-all`}>
-            {task.type !== 'event' ? (
-              <button onClick={() => toggleTask(task.id)} className={`flex-shrink-0 ${task.completed ? 'text-pink-500' : 'text-slate-300 hover:text-pink-400'}`}>
-                {task.completed ? <CheckCircle2 size={24} /> : <Circle size={24} />}
-              </button>
-            ) : (
-              <div className="flex-shrink-0 w-6 flex justify-center"><div className="w-1.5 h-6 bg-purple-400 rounded-full"></div></div>
-            )}
-            
-            <div className="flex-1">
-              <span className={`text-base block ${task.completed ? 'line-through text-slate-400' : 'text-slate-700'}`}>
-                {task.title}
-              </span>
-              <div className="flex gap-3 mt-1">
-                {task.dueDate && (
-                  <span className={`text-[10px] flex items-center gap-1 ${task.completed ? 'text-slate-300' : 'text-slate-400'}`}>
-                    <Calendar size={10} />
-                    {new Date(task.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                  </span>
-                )}
-                {task.time && (
-                  <span className={`text-[10px] flex items-center gap-1 ${task.completed ? 'text-slate-300' : 'text-purple-500 font-medium'}`}>
-                    <Clock size={10} />
-                    {task.time}
-                  </span>
-                )}
-                {task.type === 'event' && <span className="text-[10px] bg-purple-100 text-purple-600 px-1.5 rounded-md font-medium">Evento</span>}
+        {sortedTasks.map(task => {
+          const isOverdue = !task.completed && task.dueDate && task.dueDate < todayStr;
+          const isFuture = !task.completed && task.dueDate && task.dueDate > todayStr;
+          
+          return (
+            <div key={task.id} className={`group flex items-center gap-3 p-4 bg-white rounded-xl border transition-all
+              ${task.completed ? 'border-slate-100 bg-slate-50' : isOverdue ? 'border-amber-200 shadow-sm bg-amber-50/30' : 'border-slate-200 shadow-sm'} 
+            `}>
+              {task.type !== 'event' ? (
+                <button onClick={() => toggleTask(task.id)} className={`flex-shrink-0 ${task.completed ? 'text-pink-500' : isOverdue ? 'text-amber-500' : 'text-slate-300 hover:text-pink-400'}`}>
+                  {task.completed ? <CheckCircle2 size={24} /> : <Circle size={24} />}
+                </button>
+              ) : (
+                <div className="flex-shrink-0 w-6 flex justify-center"><div className="w-1.5 h-6 bg-purple-400 rounded-full"></div></div>
+              )}
+              
+              <div className="flex-1">
+                <span className={`text-base block ${task.completed ? 'line-through text-slate-400' : 'text-slate-700'}`}>
+                  {task.title}
+                </span>
+                <div className="flex gap-3 mt-1">
+                  {task.dueDate && (
+                    <span className={`text-[10px] flex items-center gap-1 
+                      ${task.completed ? 'text-slate-300' : isOverdue ? 'text-amber-600 font-bold' : isFuture ? 'text-purple-500 font-medium' : 'text-slate-400'}`}
+                    >
+                      <Calendar size={10} />
+                      {new Date(task.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                      {isOverdue && !task.completed && " (Atrasada)"}
+                      {isFuture && !task.completed && " (Futura)"}
+                    </span>
+                  )}
+                  {task.time && (
+                    <span className={`text-[10px] flex items-center gap-1 ${task.completed ? 'text-slate-300' : 'text-purple-500 font-medium'}`}>
+                      <Clock size={10} />
+                      {task.time}
+                    </span>
+                  )}
+                  {task.type === 'event' && <span className="text-[10px] bg-purple-100 text-purple-600 px-1.5 rounded-md font-medium">Evento</span>}
+                </div>
               </div>
-            </div>
 
-            {!task.completed && task.type === 'task' && (
-              <button 
-                onClick={() => handleBreakdown(task)}
-                disabled={!!loadingTask}
-                className="opacity-0 group-hover:opacity-100 text-purple-500 hover:bg-purple-50 p-2 rounded-lg transition-all"
-                title="Dividir tarefa com IA"
-              >
-                {loadingTask === task.id ? <span className="animate-spin block w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full"/> : <Wand2 size={16} />}
+              {!task.completed && task.type === 'task' && (
+                <button 
+                  onClick={() => handleBreakdown(task)}
+                  disabled={!!loadingTask}
+                  className="opacity-0 group-hover:opacity-100 text-purple-500 hover:bg-purple-50 p-2 rounded-lg transition-all"
+                  title="Dividir tarefa com IA"
+                >
+                  {loadingTask === task.id ? <span className="animate-spin block w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full"/> : <Wand2 size={16} />}
+                </button>
+              )}
+
+              <button onClick={() => deleteTask(task.id)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 p-2 transition-all">
+                <Trash2 size={18} />
               </button>
-            )}
-
-            <button onClick={() => deleteTask(task.id)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 p-2 transition-all">
-              <Trash2 size={18} />
-            </button>
-          </div>
-        ))}
+            </div>
+          );
+        })}
 
         {sortedTasks.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 text-slate-400">
